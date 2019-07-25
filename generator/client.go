@@ -195,5 +195,30 @@ func (c *clientGenerator) Generate() error {
 		}
 	}
 
+	//TODO: should have an option to enable/disable this
+	err = c.GenOpts.renderCli(&app)
+	if err != nil {
+		fmt.Printf("ERROR: %v", err)
+	}
+
+	// dumpCliTree("", &cliTree)
+
 	return nil
 }
+
+// type CliItem struct {
+// 	Token     string
+// 	Children  map[string]*CliItem
+// 	Operation *GenOperation
+// }
+
+// func dumpCliTree(prefix string, cliItem *CliItem) {
+// 	if cliItem.Operation != nil {
+// 		fmt.Printf("%s %+v\n", prefix, cliItem.Operation.Method+" "+cliItem.Operation.Path)
+// 		return
+// 	}
+// 	for token, item := range cliItem.Children {
+// 		// fmt.Printf("Recursing, prefix=\"%s\", token=\"%s\"\n", prefix, token)
+// 		dumpCliTree(prefix+" "+token, item)
+// 	}
+// }

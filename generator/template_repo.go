@@ -150,6 +150,7 @@ var assets = map[string][]byte{
 	"client/response.gotmpl":  MustAsset("templates/client/response.gotmpl"),
 	"client/client.gotmpl":    MustAsset("templates/client/client.gotmpl"),
 	"client/facade.gotmpl":    MustAsset("templates/client/facade.gotmpl"),
+	"client/cli.gotmpl":       MustAsset("templates/client/cli.gotmpl"),
 }
 
 var protectedTemplates = map[string]bool{

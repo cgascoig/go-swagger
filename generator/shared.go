@@ -517,6 +517,17 @@ func DefaultSectionOpts(gen *GenOpts) {
 			}
 		}
 	}
+
+	if len(sec.Cli) == 0 {
+		sec.Cli = []TemplateOpts{
+			{
+				Name:     "cli",
+				Source:   "asset:clientCli",
+				Target:   "{{ joinFilePath .Target \"commands\" }}",
+				FileName: "cli.go",
+			},
+		}
+	}
 	gen.Sections = sec
 
 }
@@ -537,6 +548,7 @@ type SectionOpts struct {
 	Operations      []TemplateOpts `mapstructure:"operations"`
 	OperationGroups []TemplateOpts `mapstructure:"operation_groups"`
 	Models          []TemplateOpts `mapstructure:"models"`
+	Cli             []TemplateOpts `mapstructure:"cli"`
 }
 
 // GenOpts the options for the generator
@@ -883,6 +895,82 @@ func (g *GenOpts) renderApplication(app *GenApp) error {
 			return err
 		}
 	}
+	return nil
+}
+
+type CliItem struct {
+	Token          string
+	Children       map[string]*CliItem
+	Parameter      string //the name of the field in the request struct, nil if this isn't a parameter
+	Operation      *GenOperation
+	OperationGroup *GenOperationGroup
+}
+
+func (g *GenOpts) renderCli(app *GenApp) error {
+	log.Printf("rendering %d templates for cli", len(g.Sections.Cli))
+
+	cliTree := CliItem{
+		Children: map[string]*CliItem{},
+	}
+
+	paramRe := regexp.MustCompile(`^{(.*)}$`)
+
+	for i := range app.OperationGroups {
+		opGroup := app.OperationGroups[i]
+		for j := range opGroup.Operations {
+			op := opGroup.Operations[j]
+
+			command := []string{op.Method}
+			command = append(command, strings.Split(op.Path, "/")...)
+
+			cliItem := &cliTree
+
+			for _, token := range command {
+				if token == "" {
+					continue
+				}
+
+				var parameter string
+
+				if match := paramRe.FindStringSubmatch(token); match != nil {
+					// token is of form {parameter}, so add it as parameter on parent
+					parameter = match[1]
+					token = match[1]
+				}
+
+				token = strings.ToLower(token)
+
+				_, ok := cliItem.Children[token]
+				if !ok {
+					cliItem.Children[token] = &CliItem{
+						Token:     token,
+						Children:  map[string]*CliItem{},
+						Parameter: parameter,
+					}
+				}
+				cliItem = cliItem.Children[token]
+			}
+
+			cliItem.Operation = &opGroup.Operations[j]
+			cliItem.OperationGroup = &app.OperationGroups[i]
+		}
+	}
+
+	type GenCli struct {
+		Cli *CliItem
+		App *GenApp
+	}
+	genCli := GenCli{
+		Cli: &cliTree,
+		App: app,
+	}
+
+	for _, templ := range g.Sections.Cli {
+		if err := g.write(&templ, &genCli); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
